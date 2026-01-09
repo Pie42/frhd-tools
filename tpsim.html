@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <textarea id="code"></textarea>
+    <button id="add">Add</button>
+    <div id="copyStorage"></div>
+    <script>
+        class Layer {
+            constructor(c) {
+                this.items = c.split(' ');
+                this.c = c;
+            }
+
+            clone() {
+                return new Layer(this.c);
+            }
+        }
+        class Code {
+            constructor(c) {
+                let layers = c.split('\n');
+                this.map = {};
+                this.layers = [];
+                this.c = c;
+                for (let l of layers) {
+                    let m = new Layer(l);
+                    this.layers.push(m);
+                    let ind = this.layers.length - 1;
+                    for (let i of m.items) {
+                        this.map[i] = this.map[i] || [];
+                        this.map[i].push(ind);
+                    }
+                }
+            }
+
+            clone() {
+                return new Code(this.c);
+            }
+        }
+        class CodeCopy {
+            constructor(c) {
+                this.original = c;
+                this.instance = c.clone();
+                this.steps = [];
+                this.results = [];
+                this.div = document.createElement('div');
+                this.display = document.createElement('p');
+                this.input = document.createElement('input');
+                this.input.onchange = this.update.bind(this);
+                this.div.appendChild(this.display);
+                this.div.appendChild(this.input);
+                this.div.classList.add('copy');
+                copyStorage.appendChild(this.div);
+                this.update();
+            }
+
+            reset() {
+                this.instance = this.original.clone();
+                this.results = [];
+                for (let i of this.steps) this.sim(i);
+                this.display.innerText = this.instance.layers.map(i=>i.items.join(' ')).join('\n') + '\n' + this.results.join('\n');
+            }
+
+            sim(c) {
+                if (!c) return;
+                let start = c;
+                let path = '';
+                let layer = this.instance.map[c]?.pop(), ind;
+                for (let i = 0; layer != undefined && i < 1000; i++) {
+                    path += `${c} => `;
+                    let l = this.instance.layers[layer];
+                    ind = l.items.indexOf(c);
+                    if (ind == -1) {
+                        console.log('this is bad');
+                        return;
+                    }
+                    l.items.splice(ind, 1);
+                    c = l.items.pop();
+                    if (c == undefined) {
+                        path += `exit in layer ${layer}`;
+                        this.results.push(path);
+                        return;
+                    }
+                    if (!this.instance.map[c]) {
+                        console.log('idk');
+                        return;
+                    }
+                    ind = this.instance.map[c].indexOf(layer);
+                    if (ind == -1) {
+                        console.log('this is also bad');
+                        return;
+                    }
+                    this.instance.map[c].splice(ind, 1);
+                    layer = this.instance.map[c].pop();
+                }
+                path += c;
+                this.results.push(path);
+            }
+
+            update() {
+                this.steps = this.input.value.split(' ');
+                this.reset();
+            }
+        }
+        let original = new Code('');
+        let copies = [];
+        code.onchange = () => {
+            original = new Code(code.value);
+            for (let i of copies) {
+                i.original = original;
+                i.reset();
+            }
+        };
+        add.onclick = () => {
+            copies.push(new CodeCopy(original));
+        }
+    </script>
+    <style>
+        .copy {
+            display: inline-block;
+        }
+
+        #copyStorage {
+            overflow-x: scroll;
+            width: 100%;
+            display: flex;
+        }
+    </style>
+</body>
+</html>
